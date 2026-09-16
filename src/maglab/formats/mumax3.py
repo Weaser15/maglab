@@ -54,15 +54,15 @@ def read_ovf(filepath: Path | str) -> tuple[np.ndarray, dict]:
 
     with filepath.open(mode="rb") as file:
         file.seek(header["header_length"])  # Move to the end of the header.
-        format = "<f4"
+        fmt = "<f4"
         # OVF 2.0 files have a value of 1234567.0 at the end of the header.
         # Check against it to make sure everything works.
         check_value = 1234567.0
-        check = np.frombuffer(file.read(4), dtype=format)[0]
+        check = np.frombuffer(file.read(4), dtype=fmt)[0]
         if not np.isclose(check, check_value):
             raise ValueError(f"OVF binary check value mismatch: got {check}")
 
-        arr = np.fromfile(file, count=nnodes, dtype=format).reshape(nz, ny, nx, valuedim)
+        arr = np.fromfile(file, count=nnodes, dtype=fmt).reshape(nz, ny, nx, valuedim)
 
     return arr, header
 
