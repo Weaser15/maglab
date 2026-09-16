@@ -65,3 +65,8 @@ def read_ovf(filepath: Path | str) -> tuple[np.ndarray, dict]:
         arr = np.fromfile(file, count=nnodes, dtype=format).reshape(nz, ny, nx, valuedim)
 
     return arr, header
+
+
+def read_ovf_array(filepath: Path | str) -> np.ndarray:
+    """Read an OVF file and return a numpy array of its data in shape (nz, ny, nx, valuedim)."""
+    return read_ovf(filepath)[0]
