@@ -34,6 +34,14 @@ def read_ovf_header(filepath: Path | str) -> dict:
             # Add values to header dictionary without any spaces or newlines.
             key, value = line.removeprefix("#").split(":", 1)
             header[key.strip()] = value.strip()
+
+        # OVF 2.0 files have a value of 1234567.0 at the end of the header.
+        # Check against it to make sure everything works.
+        check = np.frombuffer(file.read(4), dtype="<f4")[0]
+        check_value = 1234567.0
+        if not np.isclose(check, check_value):
+            raise ValueError(f"OVF binary check value mismatch: got {check}")
+
         # Add the header length into the header dictionary
         header["header_length"] = file.tell()
 
@@ -52,18 +60,9 @@ def read_ovf(filepath: Path | str) -> tuple[np.ndarray, dict]:
     valuedim = int(header["valuedim"])
     nnodes = nx * ny * nz * valuedim
 
-    with filepath.open(mode="rb") as file:
-        file.seek(header["header_length"])  # Move to the end of the header.
-        fmt = "<f4"
-        # OVF 2.0 files have a value of 1234567.0 at the end of the header.
-        # Check against it to make sure everything works.
-        check_value = 1234567.0
-        check = np.frombuffer(file.read(4), dtype=fmt)[0]
-        if not np.isclose(check, check_value):
-            raise ValueError(f"OVF binary check value mismatch: got {check}")
-
-        arr = np.fromfile(file, count=nnodes, dtype=fmt).reshape(nz, ny, nx, valuedim)
-
+    dtype = "<f4"
+    arr = np.fromfile(filepath, dtype=dtype, count=nnodes, offset=header["header_length"])
+    arr = arr.reshape(nz, ny, nx, valuedim)
     return arr, header
 
 
