@@ -36,7 +36,7 @@ def read_llg_movie(filepath: Path | str) -> tuple[np.ndarray, dict]:
     hcount = (filepath.stat().st_size - header["header_length"]) // bytes_per_frame
     # For each field state, there is some stuff, the applied field, average magnetisation and
     # Magnetisation for each cell.
-    fmt = np.dtype(
+    dtype = np.dtype(
         [
             ("stuff", "V12"),
             ("field", "<f8", 3),
@@ -44,10 +44,10 @@ def read_llg_movie(filepath: Path | str) -> tuple[np.ndarray, dict]:
             ("mag", "<f8", (nnodes, 3)),
         ]
     )
-    data = np.fromfile(filepath, dtype=fmt, count=hcount, offset=header["header_length"])
+    data = np.fromfile(filepath, dtype=dtype, count=hcount, offset=header["header_length"])
     header["field"] = data["field"]
     header["mag_avg"] = data["mag_avg"]
-    return data["mag"], header
+    return data["mag"].reshape(nz, ny, nx, 3), header
 
 
 def read_llg_movie_array(filepath: Path | str) -> np.ndarray:
