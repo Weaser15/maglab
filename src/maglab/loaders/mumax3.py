@@ -6,12 +6,16 @@ import pandas as pd
 from tqdm import tqdm
 
 from ..formats import mumax3
+from .utils import compute_dot_vectors
 
 
-def get_mx3_files(dirpath: Path | str, comp: str = ""):
+def get_mx3_files(dirpath: Path | str, comp: str = "", indexes: list[int] | None = None):
     dirpath = Path(dirpath)
     pattern = f"m*{comp}*.ovf" if comp else "m*.ovf"
-    return sorted(dirpath.glob(pattern))
+    files = sorted(dirpath.glob(pattern))
+    if indexes is not None:
+        files = [f for f in files if int(f.stem[-6:]) in indexes]
+    return files
 
 
 def load_ovf_array(
@@ -37,11 +41,12 @@ def load_multiple_ovf_array(
     dirpath: Path | str,
     direction: tuple[float, float, float] | None = None,
     zslice: int | slice | list | None = None,
+    indexes: list[int] | None = None,
     comp: str = "",
     max_workers: int | None = None,
 ):
     # Select files
-    files = get_mx3_files(dirpath, comp)
+    files = get_mx3_files(dirpath, comp, indexes=indexes)
 
     # Get metadata from a header.
     header = mumax3.read_ovf_header(files[0])
@@ -75,6 +80,40 @@ def get_state_idx(table: pd.DataFrame | Path | str, bool_name: str = "save_m"):
         table = mumax3.read_table(table)
 
     # Select first column that matches bool_name
-    column = table.loc[:, table.columns.str.contains(bool_name)].iloc[:, 0]
-    bool_vals = column.to_numpy().astype(bool)
-    return pd.Series(np.cumsum(bool_vals), dtype="Int32").where(bool_vals)
+    mask = table.columns.str.contains(bool_name)
+    if np.any(mask):
+        column = table.loc[:, table.columns.str.contains(bool_name)].iloc[:, 0]
+        bool_vals = column.to_numpy().astype(bool)
+        return pd.Series(np.cumsum(bool_vals), dtype="Int32").where(bool_vals)
+    else:
+        return pd.Series(np.arange(len(mask)), dtype="Int32")
+
+
+def get_indexes_by_param(
+    table: pd.DataFrame | Path | str,
+    values: float | list[float] | np.ndarray,
+    *,
+    tableparam: str | None = None,
+    vectorparam: str | None = None,
+    bool_name: str = "save_m",
+):
+    if not isinstance(table, pd.DataFrame):
+        table = mumax3.read_table(table)
+
+    state_idx = get_state_idx(table, bool_name).to_numpy()
+    values = np.array([values]) if isinstance(values, float) else np.array(values)
+    if tableparam:
+        column = table.loc[:, table.columns.str.contains(tableparam)].to_numpy()
+    elif vectorparam:
+        column = compute_dot_vectors(table, [vectorparam], vectorparam)[0]
+    else:
+        raise ValueError("tableparam and vectorparam not specified!")
+    # Filter out the entries that do not match a state
+    column = column[~np.isnan(state_idx)]
+    has_matched = np.isclose(values[:, np.newaxis], column, atol=1e-5)
+    non_matches = values[~np.any(has_matched, axis=1)]
+    if np.any(non_matches):
+        print(f"Could not match: {non_matches}")
+
+    indexes = np.where(np.sum(has_matched, axis=0))[0]
+    return indexes, values[np.any(has_matched, axis=1)]

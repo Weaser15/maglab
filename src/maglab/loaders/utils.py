@@ -18,7 +18,6 @@ def compute_dot_vectors(
     norm_direction = np.array(direction) / np.linalg.norm(direction)
     dotted: list[np.ndarray] = []
     for name in names:
-        print(name)
         # Find all columns that contain name + comp
         mask = df.columns.str.contains("|".join(name + c for c in comps))
         dotted.append(np.dot(df.loc[:, mask].to_numpy(), norm_direction))
