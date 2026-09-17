@@ -55,7 +55,9 @@ def plot_lightness(
     if ax is None:
         _, ax = plt.subplots()
     carr = get_lightness_colours(arr, lightness_clim=clim, filter=filter)
-    ax.imshow(carr.transpose((1, 0, 2)), origin="lower")
+    ax.imshow(carr, origin="lower")
+    ax.set_xlim(*ax.get_xlim())
+    ax.set_ylim(*ax.get_ylim())
     return ax
 
 
@@ -83,7 +85,7 @@ def plot_magnitude(
     carr = sm.to_rgba(arr_)
     # cmap_ = plt.get_cmap(cmap)
     # carr = cmap_(arr_)
-    ax.imshow(carr.transpose((1, 0, 2)), origin="lower")
+    ax.imshow(carr, origin="lower")
     return ax
 
 
