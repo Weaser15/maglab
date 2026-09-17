@@ -7,6 +7,12 @@ from tqdm import tqdm
 from ..formats import mumax3
 
 
+def get_mx3_files(dirpath: Path | str, comp: str = ""):
+    dirpath = Path(dirpath)
+    pattern = f"m*{comp}*.ovf" if comp else "m*.ovf"
+    return sorted(dirpath.glob(pattern))
+
+
 def load_ovf_array(
     filepath: Path | str,
     direction: tuple[float, float, float] | None = None,
@@ -34,9 +40,7 @@ def load_multiple_ovf_array(
     max_workers: int | None = None,
 ):
     # Select files
-    dirpath = Path(dirpath)
-    pattern = f"m*{comp}*.ovf" if comp else "m*.ovf"
-    files = sorted(dirpath.glob(pattern))
+    files = get_mx3_files(dirpath, comp)
 
     # Get metadata from a header.
     header = mumax3.read_ovf_header(files[0])
