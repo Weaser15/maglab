@@ -226,7 +226,7 @@ def evenly_spaced_streamlines(
     Parameters
     ----------
     arr : np.ndarray
-        Vector field array of shape (nx, ny, 2) or (nx, ny, 3). Only the
+        Vector field array of shape (ny, nx, 2) or (ny, nx, 3). Only the
         first two components (in-plane) are used.
     d_sep : float
         Separation distance between streamlines in pixels. Controls density.
@@ -249,6 +249,7 @@ def evenly_spaced_streamlines(
     if d_test is None:
         d_test = d_sep / 2.0
 
+    arr = np.transpose(arr, (1, 0, 2))
     shape = arr.shape[:2]
     nx, ny = shape
 

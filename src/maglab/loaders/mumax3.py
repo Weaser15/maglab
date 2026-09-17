@@ -9,7 +9,9 @@ from ..formats import mumax3
 from .utils import compute_dot_vectors
 
 
-def get_mx3_files(dirpath: Path | str, comp: str = "", indexes: list[int] | None = None):
+def get_mx3_files(
+    dirpath: Path | str, comp: str = "", indexes: list[int] | np.ndarray | None = None
+):
     dirpath = Path(dirpath)
     pattern = f"m*{comp}*.ovf" if comp else "m*.ovf"
     files = sorted(dirpath.glob(pattern))
@@ -41,7 +43,7 @@ def load_multiple_ovf_array(
     dirpath: Path | str,
     direction: tuple[float, float, float] | None = None,
     zslice: int | slice | list | None = None,
-    indexes: list[int] | None = None,
+    indexes: list[int] | np.ndarray | None = None,
     comp: str = "",
     max_workers: int | None = None,
 ):
