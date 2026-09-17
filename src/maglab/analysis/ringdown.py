@@ -16,7 +16,9 @@ def avg_mag_ringdown(mag: np.ndarray, time: np.ndarray):
     return pd.DataFrame({"frequency": frequencies, "absorption": psd})
 
 
-def ringdown(arr: np.ndarray, time: np.ndarray):
+def ringdown(
+    arr: np.ndarray, time: np.ndarray
+) -> tuple[tuple[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]]:
     ntime = len(time)
     dt = np.ptp(time) / ntime
     frequencies = np.round(fft.rfftfreq(ntime, dt) * 1e-9, 4)[1:]
@@ -24,7 +26,7 @@ def ringdown(arr: np.ndarray, time: np.ndarray):
     arr = arr.squeeze(axis=-1)
     arr_fft = cast(np.ndarray, fft.rfft(arr, axis=0))[1:]
 
-    psd = arr_fft**2
+    psd = np.abs(arr_fft) ** 2
     phase = np.angle(arr_fft)
     del arr
 
