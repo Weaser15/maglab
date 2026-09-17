@@ -5,23 +5,21 @@ import pandas as pd
 import scipy.fft as fft
 
 
-def avg_mag_ringdown(time: np.ndarray, mag: np.ndarray):
+def avg_mag_ringdown(mag: np.ndarray, time: np.ndarray):
 
     ntime = len(time)
     dt = np.ptp(time) / ntime
-    frequencies = np.round(fft.fftfreq(ntime, dt) * 1e-9, 4)
-    mask = frequencies > 0
 
+    frequencies = np.round(fft.rfftfreq(ntime, dt) * 1e-9, 4)
     m_fft = cast(np.ndarray, fft.rfft(mag))
-    psd = m_fft[mask] ** 2
-    freq = frequencies[mask]
-    return pd.DataFrame({"frequency": freq, "absorption": psd})
+    psd = np.abs(m_fft) ** 2
+    return pd.DataFrame({"frequency": frequencies, "absorption": psd})
 
 
 def ringdown(arr: np.ndarray, time: np.ndarray):
     ntime = len(time)
     dt = np.ptp(time) / ntime
-    frequencies = np.round(fft.fftfreq(ntime, dt) * 1e-9, 4)[1:]
+    frequencies = np.round(fft.rfftfreq(ntime, dt) * 1e-9, 4)[1:]
 
     arr = arr.squeeze(axis=-1)
     arr_fft = cast(np.ndarray, fft.rfft(arr, axis=0))[1:]
