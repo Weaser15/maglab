@@ -18,6 +18,24 @@ def avg_mag_ringdown(time: np.ndarray, mag: np.ndarray):
     return pd.DataFrame({"frequency": freq, "absorption": psd})
 
 
+def ringdown(arr: np.ndarray, time: np.ndarray):
+    ntime = len(time)
+    dt = np.ptp(time) / ntime
+    frequencies = np.round(fft.fftfreq(ntime, dt) * 1e-9, 4)[1:]
+
+    arr = arr.squeeze(axis=-1)
+    arr_fft = cast(np.ndarray, fft.rfft(arr, axis=0))[1:]
+
+    psd = arr_fft**2
+    phase = np.angle(arr_fft)
+    del arr
+
+    psd_spectrum = np.mean(psd, axis=(1, 2, 3))
+    psd[psd == 0.0] = np.nan
+
+    return (psd, phase), (frequencies, psd_spectrum)
+
+
 def dispersion(arr: np.ndarray, time: np.ndarray, dx: float, dy: float):
 
     ntime = len(time)
@@ -29,13 +47,14 @@ def dispersion(arr: np.ndarray, time: np.ndarray, dx: float, dy: float):
     Fsky = 2 * np.pi / dy
 
     # Time, number of z, number of y, number of x, number of components (1 or 3)
-    _, _, ny, nx, _ = arr.shape
+    _, _, ny, nx, *_ = arr.shape
 
     # Reciprocal coordinates
     f = np.arange(-ntime // 2, ntime // 2) * (Fs / ntime)
     kx = np.arange(-nx // 2, nx // 2) * (Fskx / nx)
     ky = np.arange(-ny // 2, ny // 2) * (Fsky / ny)
 
+    # Compute FFT, then shift to centre.
     arr_shifted = np.fft.ifftshift(arr, axes=(2, 3))
     absorption = np.fft.fftn(arr_shifted)
     absorption = np.fft.fftshift(absorption, axes=(0, 2, 3))
