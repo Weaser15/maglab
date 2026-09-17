@@ -2,6 +2,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 
 from ..formats import mumax3
@@ -67,3 +68,13 @@ def load_multiple_ovf_array(
         ):
             future.result()
     return arr
+
+
+def get_state_idx(table: pd.DataFrame | Path | str, bool_name: str = "save_m"):
+    if not isinstance(table, pd.DataFrame):
+        table = mumax3.read_table(table)
+
+    # Select first column that matches bool_name
+    column = table.loc[:, table.columns.str.contains(bool_name)].iloc[:, 0]
+    bool_vals = column.to_numpy().astype(bool)
+    return pd.Series(np.cumsum(bool_vals), dtype="Int32").where(bool_vals)
