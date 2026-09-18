@@ -16,24 +16,42 @@ def avg_mag_ringdown(mag: np.ndarray, time: np.ndarray):
     return pd.DataFrame({"frequency": frequencies, "absorption": psd})
 
 
+# def ringdown(
+#     arr: np.ndarray, time: np.ndarray
+# ) -> tuple[tuple[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]]:
+#     ntime = len(time)
+#     dt = np.ptp(time) / ntime
+#     frequencies = np.round(fft.rfftfreq(ntime, dt) * 1e-9, 4)[1:]
+
+#     arr = arr.squeeze(axis=-1)
+#     arr = arr - arr.mean(axis=0, keepdims=True)
+#     arr_fft = cast(np.ndarray, fft.rfft(arr, axis=0))[1:]
+
+#     psd = np.abs(arr_fft) ** 2
+#     phase = np.angle(arr_fft)
+#     del arr
+
+#     psd_spectrum = np.mean(psd, axis=(1, 2, 3))
+#     psd[psd == 0.0] = np.nan
+
+#     return (psd, phase), (frequencies, psd_spectrum)
+
+
 def ringdown(
-    arr: np.ndarray, time: np.ndarray
+    arr: np.ndarray, time: np.ndarray, window: bool = False
 ) -> tuple[tuple[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]]:
     ntime = len(time)
-    dt = np.ptp(time) / ntime
-    frequencies = np.round(fft.rfftfreq(ntime, dt) * 1e-9, 4)[1:]
+    dt = np.diff(time).mean()
 
     arr = arr.squeeze(axis=-1)
-    arr_fft = cast(np.ndarray, fft.rfft(arr, axis=0))[1:]
+    arr = arr - arr.mean(axis=0, keepdims=True)
+    w = np.hanning(ntime) if window else np.ones(ntime)
+    spec = fft.rfft(arr * w[:, None, None, None], axis=0)
+    freqs = fft.rfftfreq(ntime, dt)
 
-    psd = np.abs(arr_fft) ** 2
-    phase = np.angle(arr_fft)
-    del arr
-
-    psd_spectrum = np.mean(psd, axis=(1, 2, 3))
-    psd[psd == 0.0] = np.nan
-
-    return (psd, phase), (frequencies, psd_spectrum)
+    bls = (np.abs(spec) ** 2).mean(axis=(1, 2, 3))
+    fmr = np.abs(fft.rfft(arr.mean(axis=(1, 2, 3)) * w)) ** 2
+    return spec, freqs, bls, fmr
 
 
 def dispersion(arr: np.ndarray, time: np.ndarray, dx: float, dy: float):

@@ -14,7 +14,7 @@ def get_mx3_files(
 ):
     dirpath = Path(dirpath)
     pattern = f"m*{comp}*.ovf" if comp else "m*.ovf"
-    files = sorted(dirpath.glob(pattern))
+    files = sorted(dirpath.glob(pattern), key=lambda x: int(x.stem[-6:]))
     if indexes is not None:
         files = [f for f in files if int(f.stem[-6:]) in indexes]
     return files
