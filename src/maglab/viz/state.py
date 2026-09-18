@@ -5,14 +5,13 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from matplotlib.collections import LineCollection
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 from scipy.ndimage import zoom
 
 from .colour import get_lightness_colours
-from .streamlines import evenly_spaced_streamlines
+from .streamlines import draw_streamlines, evenly_spaced_streamlines
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
@@ -95,46 +94,49 @@ def plot_streamlines(
     d_test: float | None = None,
     step: float = 1.0,
     max_steps: int = 1000,
-    ax: Axes | None = None,
-    arrow: bool = True,
-    arrowstyle="-|>",
-    arrow_every=1,
+    seed: np.ndarray | None = None,
+    min_in_plane: float = 1e-3,
+    scalar_index: int | None = 2,
+    scalars=None,
+    ax=None,
+    linewidth: float = 1.0,
+    color: str = "k",
+    cmap: str = "coolwarm",
+    clim: tuple[float, float] | None = None,
+    arrows: bool = False,
+    arrow_every: int = 1,
+    arrow_spacing: float | None = None,
+    arrowstyle: str = "-|>",
+    arrow_size: float = 10.0,
+    arrow_color=None,
+    arrow_kwargs: dict | None = None,
     **kwargs,
 ) -> None:
 
     if ax is None:
         _, ax = plt.subplots()
 
-    kwargs.setdefault("colors", "black")
-    kwargs.setdefault("linewidths", 0.8)
-
-    streamlines = evenly_spaced_streamlines(
-        arr, d_sep=d_sep, d_test=d_test, step=step, max_steps=max_steps
+    streamlines, _ = evenly_spaced_streamlines(
+        arr, d_sep, d_test, step, max_steps, seed, min_in_plane, scalar_index
     )
 
-    lc = LineCollection(streamlines, **kwargs)
-    ax.add_collection(lc)
-
-    if arrow:
-        color = kwargs.get("colors", "black")
-        lw = kwargs.get("linewidths", 0.8)
-        for line in streamlines[::arrow_every]:
-            if len(line) < 2:
-                continue
-            # midpoint of the line
-            mid = max(0, len(line) // 2 - 1)
-            p1 = line[mid]
-            p2 = line[mid + 1]
-            ax.annotate(
-                "",
-                xytext=p1,
-                xy=p2,
-                arrowprops={
-                    "arrowstyle": arrowstyle,
-                    "color": color,
-                    "lw": lw,
-                },
-            )
+    draw_streamlines(
+        streamlines,
+        scalars,
+        ax,
+        linewidth,
+        color,
+        cmap,
+        clim,
+        arrows,
+        arrow_every,
+        arrow_spacing,
+        arrowstyle,
+        arrow_size,
+        arrow_color,
+        arrow_kwargs,
+        **kwargs,
+    )
 
 
 def to_image(
