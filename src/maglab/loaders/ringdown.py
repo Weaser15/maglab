@@ -54,4 +54,4 @@ def load_dispersion(
         max_workers=max_workers,
     )
     header = mumax3.read_ovf_header(get_mx3_files(dirpath, comp=comp)[0])
-    return ringdown.dispersion(arr, time, float(header["dx"]), float(header["dy"]))
+    return ringdown.dispersion(arr, time, float(header["xstepsize"]), float(header["ystepsize"]))

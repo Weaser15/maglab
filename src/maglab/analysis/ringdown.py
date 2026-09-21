@@ -38,19 +38,22 @@ def avg_mag_ringdown(mag: np.ndarray, time: np.ndarray):
 
 
 def ringdown(
-    arr: np.ndarray, time: np.ndarray, window: bool = False
+    arr: np.ndarray, time: np.ndarray
 ) -> tuple[tuple[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]]:
     ntime = len(time)
     dt = np.diff(time).mean()
 
     arr = arr.squeeze(axis=-1)
-    arr = arr - arr.mean(axis=0, keepdims=True)
-    w = np.hanning(ntime) if window else np.ones(ntime)
-    spec = fft.rfft(arr * w[:, None, None, None], axis=0)
-    freqs = fft.rfftfreq(ntime, dt)
+    arr -= arr.mean(axis=0, keepdims=True)
+    spec: np.ndarray = fft.rfft(arr, axis=0)  # type:ignore
+    freqs = fft.rfftfreq(ntime, dt).round(6)
+    import matplotlib.pyplot as plt
+
+    plt.plot(time, arr.mean(axis=(1, 2, 3)))
+    plt.show()
 
     bls = (np.abs(spec) ** 2).mean(axis=(1, 2, 3))
-    fmr = np.abs(fft.rfft(arr.mean(axis=(1, 2, 3)) * w)) ** 2
+    fmr = np.abs(fft.rfft(arr.mean(axis=(1, 2, 3)))) ** 2
     return spec, freqs, bls, fmr
 
 
