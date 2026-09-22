@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 
 
@@ -30,3 +32,19 @@ def boundary_slice_mask(shape: np.ndarray | tuple[int, ...], slices: list[slice]
             indices1, indices2 = (start, size, step), (0, stop, step)
             mask.append(np.concatenate((np.arange(*indices1), np.arange(*indices2))))
     return tuple(mask)
+
+
+def get_mask_shape(shape: np.ndarray | tuple[int, ...], mask: Any):
+    shape = shape.shape if isinstance(shape, np.ndarray) else shape
+    mask_shape = []
+    if isinstance(mask, slice):
+        return (len(np.empty(shape[0])[mask]), *shape[1:])
+    for size, masked_row in zip(shape, mask):
+        if isinstance(masked_row, np.ndarray | list):
+            mask_shape.append(len(masked_row))
+        elif isinstance(masked_row, slice):
+            mask_shape.append(len(np.empty(size)[masked_row]))
+        else:
+            raise NotImplementedError(f"Currently type {type(masked_row)} is not supported!")
+    mask_shape.extend(shape[len(mask) - len(shape) :])
+    return tuple(mask_shape)

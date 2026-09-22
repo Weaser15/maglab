@@ -1,11 +1,13 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
 from ..formats import mumax3
+from ..processing.state import get_mask_shape
 from .utils import compute_dot_vectors
 
 
@@ -24,9 +26,10 @@ def load_ovf_array(
     filepath: Path | str,
     direction: tuple[float, float, float] | None = None,
     zslice: int | slice | list | None = None,
+    mask: Any = slice(None),
 ):
-    # Load array and apply z slice
-    arr = mumax3.read_ovf_array(filepath)[zslice, ...]
+    # Load array and apply mask, then z slice
+    arr = mumax3.read_ovf_array(filepath)[mask][zslice, ...]
     # Can only apply direction if array vector is size 3, not 1.
     if (direction is not None) and (arr.shape[-1] > 1):
         # Normalise direction and if direction is along a single component select just that.
@@ -43,6 +46,7 @@ def load_multiple_ovf_array(
     dirpath: Path | str,
     direction: tuple[float, float, float] | None = None,
     zslice: int | slice | list | None = None,
+    mask: Any = slice(None),
     indexes: list[int] | np.ndarray | None = None,
     comp: str = "",
     max_workers: int | None = None,
@@ -58,14 +62,16 @@ def load_multiple_ovf_array(
     # Change the number of cells along z depending on selection.
     if zslice is not None:
         nz = len(np.arange(nz)[zslice])
-    # If direction
+    # If direction is defined, last axis collapes to 1
     valuedim = 1 if direction is not None else valuedim
-    arr = np.empty((len(files), nz, ny, nx, valuedim), dtype=np.float32)
+    # If a mask is defined, apply the shape to the array.
+    shape = get_mask_shape((len(files), nz, ny, nx, valuedim), mask)
+    arr = np.empty(shape, dtype=np.float32)
 
     # Parallelise the loading process by splitting into multiple workers
     def _load(args):
         i, file = args
-        arr[i] = load_ovf_array(file, direction=direction, zslice=zslice)
+        arr[i] = load_ovf_array(file, direction=direction, zslice=zslice, mask=mask)
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(_load, (i, f)): i for i, f in enumerate(files)}
