@@ -14,3 +14,19 @@ def select_rectangular(arr: np.ndarray, xrange: tuple[float, float], yrange: tup
     else:
         carr = np.concatenate((carr[:, :, ymin:, :, :], carr[:, :, :ymax, :, :]), axis=2)
     return carr
+
+
+def boundary_slice_mask(shape: np.ndarray | tuple[int, ...], slices: list[slice]):
+    shape = shape.shape if isinstance(shape, np.ndarray) else shape
+    mask = []
+    for size, dim_slice in zip(shape, slices):
+        start, stop, step = dim_slice.start, dim_slice.stop, dim_slice.step
+        if start is None or stop is None:
+            mask.append(dim_slice)
+            continue
+        if start < stop:
+            mask.append(dim_slice)
+        else:
+            indices1, indices2 = (start, size, step), (0, stop, step)
+            mask.append(np.concatenate((np.arange(*indices1), np.arange(*indices2))))
+    return tuple(mask)

@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import numpy as np
+
 from ..analysis import ringdown
 from ..formats import mumax3
 from ..loaders.mumax3 import get_mx3_files, load_multiple_ovf_array
@@ -20,6 +22,7 @@ def load_ringdown(
     dirpath: Path | str,
     direction=(0.0, 0.0, 1.0),
     zslice: int | slice | list | None = None,
+    indexes: list[int] | np.ndarray | None = None,
     comp: str = "",
     max_workers: int | None = None,
 ):
@@ -30,6 +33,7 @@ def load_ringdown(
         dirpath=dirpath,
         direction=direction,
         zslice=zslice,
+        indexes=indexes,
         comp=comp,
         max_workers=max_workers,
     )
