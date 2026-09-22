@@ -56,9 +56,7 @@ def load_multiple_ovf_array(
 
     # Get metadata from a header.
     header = mumax3.read_ovf_header(files[0])
-    nx, ny, nz = int(header["xnodes"]), int(header["ynodes"]), int(header["znodes"])
-    valuedim = int(header["valuedim"])
-
+    nx, ny, nz, valuedim = header.get_dims()
     # Change the number of cells along z depending on selection.
     if zslice is not None:
         nz = len(np.arange(nz)[zslice])
