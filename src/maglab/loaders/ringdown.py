@@ -19,7 +19,7 @@ def load_spec_array(
     max_workers: int | None = None,
 ):
     arr = load_multiple_ovf_array(dirpath, direction, zslice, mask, indexes, comp, max_workers)
-    return ringdown.calc_spectrum(arr).copy()
+    return ringdown.time_to_freq(arr).copy()
 
 
 def load_dispersion_array(
@@ -32,7 +32,7 @@ def load_dispersion_array(
     max_workers: int | None = None,
 ):
     spec = load_spec_array(dirpath, direction, zslice, mask, indexes, comp, max_workers)
-    return ringdown.calc_dispersion(spec).copy()
+    return ringdown.real_to_k(spec)
 
 
 def load_frequencies(filepath: Path | str) -> np.ndarray:
