@@ -21,6 +21,7 @@ dev = [
     "notebook>=7.6.2",
     "pytest>=9.1.1",
     "ruff>=0.16.5",
+    "scipy-stubs>=1.18.1.1",
 ]
 
 [build-system]

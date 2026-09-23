@@ -50,7 +50,7 @@ def load_multiple_ovf_array(
     indexes: list[int] | np.ndarray | None = None,
     comp: str = "",
     max_workers: int | None = None,
-):
+) -> np.ndarray:
     # Select files
     files = get_mx3_files(dirpath, comp, indexes=indexes)
 
@@ -58,8 +58,9 @@ def load_multiple_ovf_array(
     header = mumax3.read_ovf_header(files[0])
     nx, ny, nz, valuedim = header.get_dims()
     # Change the number of cells along z depending on selection.
+    # Creating a new axis so nz doesn't collapse into an int when zslice is an int.
     if zslice is not None:
-        nz = len(np.arange(nz)[zslice])
+        nz = np.arange(nz)[:, None][zslice].size
     # If direction is defined, last axis collapes to 1
     valuedim = 1 if direction is not None else valuedim
     # If a mask is defined, apply the shape to the array.

@@ -222,3 +222,6 @@ __marimo__/
 # Blender
 *.blend
 *.blend1
+
+# Images
+*.png

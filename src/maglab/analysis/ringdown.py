@@ -1,83 +1,49 @@
-from typing import cast
-
 import numpy as np
 import pandas as pd
 import scipy.fft as fft
 
 
-def avg_mag_ringdown(mag: np.ndarray, time: np.ndarray):
+def avg_mag_ringdown(mag: np.ndarray, time: np.ndarray) -> pd.DataFrame:
 
-    ntime = len(time)
-    dt = np.ptp(time) / ntime
-
-    frequencies = np.round(fft.rfftfreq(ntime, dt) * 1e-9, 4)
-    m_fft = cast(np.ndarray, fft.rfft(mag))
-    psd = np.abs(m_fft) ** 2
+    frequencies = calc_frequencies(len(time), np.diff(time).mean())
+    psd = np.abs(fft.rfft(mag)) ** 2
     return pd.DataFrame({"frequency": frequencies, "absorption": psd})
 
 
-# def ringdown(
-#     arr: np.ndarray, time: np.ndarray
-# ) -> tuple[tuple[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]]:
-#     ntime = len(time)
-#     dt = np.ptp(time) / ntime
-#     frequencies = np.round(fft.rfftfreq(ntime, dt) * 1e-9, 4)[1:]
-
-#     arr = arr.squeeze(axis=-1)
-#     arr = arr - arr.mean(axis=0, keepdims=True)
-#     arr_fft = cast(np.ndarray, fft.rfft(arr, axis=0))[1:]
-
-#     psd = np.abs(arr_fft) ** 2
-#     phase = np.angle(arr_fft)
-#     del arr
-
-#     psd_spectrum = np.mean(psd, axis=(1, 2, 3))
-#     psd[psd == 0.0] = np.nan
-
-#     return (psd, phase), (frequencies, psd_spectrum)
+def calc_spectrum(arr: np.ndarray) -> np.ndarray:
+    spec = fft.rfft(arr, axis=0, workers=-1)
+    spec[0] = 0.0
+    return spec
 
 
-def ringdown(
-    arr: np.ndarray, time: np.ndarray
-) -> tuple[tuple[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]]:
-    ntime = len(time)
-    dt = np.diff(time).mean()
-
-    arr = arr.squeeze(axis=-1)
-    arr -= arr.mean(axis=0, keepdims=True)
-    spec: np.ndarray = fft.rfft(arr, axis=0)  # type:ignore
-    freqs = fft.rfftfreq(ntime, dt).round(6)
-    import matplotlib.pyplot as plt
-
-    plt.plot(time, arr.mean(axis=(1, 2, 3)))
-    plt.show()
-
-    bls = (np.abs(spec) ** 2).mean(axis=(1, 2, 3))
-    fmr = np.abs(fft.rfft(arr.mean(axis=(1, 2, 3)))) ** 2
-    return spec, freqs, bls, fmr
+def calc_incoherent(spec: np.ndarray) -> np.ndarray:
+    return (abs(spec) ** 2).mean(axis=tuple(range(1, spec.ndim)))
 
 
-def dispersion(arr: np.ndarray, time: np.ndarray, dx: float, dy: float):
+def calc_coherent(spec: np.ndarray) -> np.ndarray:
+    return abs(spec.mean(axis=tuple(range(1, spec.ndim)))) ** 2
 
-    ntime = len(time)
-    dt = np.ptp(time) / ntime
 
-    # Reciprocal distances
-    Fs = 1 / dt
-    Fskx = 2 * np.pi / dx
-    Fsky = 2 * np.pi / dy
+def calc_dispersion(spec: np.ndarray, axes: tuple = (2, 3)):
+    return fft.fftshift(fft.fftn(fft.ifftshift(spec, axes=axes), axes=axes, workers=-1), axes=axes)
 
-    # Time, number of z, number of y, number of x, number of components (1 or 3)
-    _, _, ny, nx, *_ = arr.shape
 
-    # Reciprocal coordinates
-    f = np.arange(-ntime // 2, ntime // 2) * (Fs / ntime)
-    kx = np.arange(-nx // 2, nx // 2) * (Fskx / nx)
-    ky = np.arange(-ny // 2, ny // 2) * (Fsky / ny)
+def calc_frequencies(nt: int, dt: float) -> np.ndarray:
+    return fft.rfftfreq(nt, dt)
 
-    # Compute FFT, then shift to centre.
-    arr_shifted = np.fft.ifftshift(arr, axes=(2, 3))
-    absorption = np.fft.fftn(arr_shifted)
-    absorption = np.fft.fftshift(absorption, axes=(0, 2, 3))
 
-    return absorption, (f, kx, ky)
+def calc_wavevectors(ni: int, di: float) -> np.ndarray:
+    return 2 * np.pi * fft.fftshift(fft.fftfreq(ni, di))
+
+
+def calc_masked_wavevector_array(arr: np.ndarray, axes: tuple = (1, 2), filt=1):
+    arr = calc_spectrum(arr)
+    arr = arr[:, 0, :, :, 0]
+    arr = fft.ifftshift(arr, axes=axes)
+    arr = fft.fftn(arr, axes=axes, workers=-1)
+    arr = fft.fftshift(arr, axes=axes)
+    arr *= filt
+    arr = fft.ifftshift(arr, axes=axes)
+    arr = fft.ifftn(arr, axes=axes, workers=-1)
+    arr = fft.fftshift(arr, axes=axes)
+    return arr
