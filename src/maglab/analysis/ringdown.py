@@ -35,12 +35,12 @@ def _expand(mask: np.ndarray, ndim: int, axes: tuple[int, ...]) -> np.ndarray:
 # --- coordinates -------------------------------------------------------------
 
 
-def calc_frequencies(nt: int, dt: float) -> np.ndarray:
+def frequencies(nt: int, dt: float) -> np.ndarray:
     """Calculate the frequencies of a spectrum from the number of times and the time difference."""
     return fft.rfftfreq(nt, dt)
 
 
-def calc_wavevectors(ni: int, di: float) -> np.ndarray:
+def wavevectors(ni: int, di: float) -> np.ndarray:
     """Calculate the wavevectors (rad) from the number of cells and the distance difference."""
     return 2 * np.pi * fft.fftshift(fft.fftfreq(ni, di))
 
@@ -78,22 +78,27 @@ def filter_k(arr: np.ndarray, mask: np.ndarray, axes: tuple[int, ...] = XY_AXES)
     return k_to_real(real_to_k(arr, axes) * _expand(mask, arr.ndim, axes), axes)
 
 
-def table_ringdown(mag: np.ndarray | pd.Series, time: np.ndarray | pd.Series) -> pd.DataFrame:
-    """Perform FFT on a table containing ringdown simulations. Outputs a DataFrame."""
-    frequencies = calc_frequencies(len(time), np.diff(time).mean())
-    psd = np.abs(fft.rfft(mag)) ** 2
-    return pd.DataFrame({"frequency": frequencies, "absorption": psd})
+# --- reductions --------------------------------------------------------------
 
 
-def calc_incoherent(spec: np.ndarray, f_axis: int = 0) -> np.ndarray:
-    """Calculate the incoherent spectrum. This means squaring the amplitude at each point,
-    and then averaging over all space. Frequency axis by default on axis 0."""
+def incoherent_power(spec: np.ndarray, f_axis: int = T_AXIS) -> np.ndarray:
+    """|.|^2 at each point, then average over all non-frequency axes."""
     # Get all axes, then remove the f_axis.
     return (abs(spec) ** 2).mean(axis=_other_axes(spec.ndim, f_axis))
 
 
-def calc_coherent(spec: np.ndarray, f_axis: int = 0) -> np.ndarray:
-    """Calculate the coherent spectrum. This means averaging over all space and then
-    squaring the amplitude at each frequency. Frequency axis by default on axis 0."""
+def coherent_power(spec: np.ndarray, f_axis: int = T_AXIS) -> np.ndarray:
+    """Average over all non-frequency axes, then |.|^2."""
     # Get all axes, then remove the f_axis.
     return abs(spec.mean(axis=_other_axes(spec.ndim, f_axis))) ** 2
+
+
+# --- adapters ----------------------------------------------------------------
+
+
+def table_ringdown(mag: np.ndarray | pd.Series, time: np.ndarray | pd.Series) -> pd.DataFrame:
+    """Perform FFT on a table containing ringdown simulations. Outputs a DataFrame."""
+    mag, time = np.asarray(mag), np.asarray(time)
+    spec = time_to_freq(time)
+    freqs = frequencies(len(time), np.diff(time).mean())
+    return pd.DataFrame({"frequency": freqs, "power": spec})
