@@ -18,6 +18,7 @@ def plot_hysteresis(
 
     dirpath = Path(dirpath)
     savedir = Path(savedir)
+    savedir.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots()
     df = load_hysteresis(dirpath / "table.txt")
