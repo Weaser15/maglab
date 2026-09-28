@@ -52,7 +52,7 @@ def plot_lightness(
 ) -> Axes:
 
     if ax is None:
-        _, ax = plt.subplots()
+        fig, ax = plt.subplots()
     carr = get_lightness_colours(arr, lightness_clim=clim, filter=filter)
     ax.imshow(carr, origin="lower")
     ax.set_xlim(*ax.get_xlim())
@@ -164,8 +164,6 @@ def to_image(
     im_arr: np.ndarray = ax.get_images()[0].get_array()  # type: ignore
     yx_ratio = im_arr.shape[0] / im_arr.shape[1]  # Axes transposed for image
 
-    print(fig.get_size_inches())
-
     if sf is not None and not any(figsize):
         figsize = (im_arr.shape[1] * sf, im_arr.shape[0] * sf)
 
@@ -178,6 +176,7 @@ def to_image(
     elif figsize[0] is not None and figsize[1] is not None:
         fig.set_size_inches(figsize[0], figsize[1])
 
+    print(fig.get_size_inches())
     # Make sure below maximum (10, 10) inches.
     max_size = 10.0
     if fig.get_size_inches()[0] > 10.0:
