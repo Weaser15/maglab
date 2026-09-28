@@ -8,7 +8,9 @@ from ..loaders.mumax3 import get_state_idx, load_multiple_ovf_array
 from ..viz.state import plot_lightness, plot_streamlines, to_image
 
 
-def plot_hysteresis(dirpath, inch_per_px=1e-3, dpi=200):
+def plot_hysteresis(
+    dirpath: Path | str, name: str = "hyst", inch_per_px: float = 1e-3, dpi: int = 200
+):
 
     dirpath = Path(dirpath)
 
@@ -19,7 +21,7 @@ def plot_hysteresis(dirpath, inch_per_px=1e-3, dpi=200):
     ax.set_ylim(-1, 1)
     ax.set_xlabel("Field (Oe)")
     ax.set_ylabel(r"$M/M_\text{S}$")
-    fig.savefig("hyst.png", dpi=dpi)
+    fig.savefig(f"{name}.png", dpi=dpi)
 
     state_idx = get_state_idx(dirpath / "table.txt")
     fields = df.loc[np.where(state_idx)[0], "field"] * 1e4
@@ -28,4 +30,4 @@ def plot_hysteresis(dirpath, inch_per_px=1e-3, dpi=200):
         state = state[0, ...]
         ax = plot_lightness(state)
         plot_streamlines(state, ax=ax, d_sep=10, arrows=True)
-        to_image(ax, filepath=f"{field:.0f}Oe.png", sf=inch_per_px, dpi=dpi)
+        to_image(ax, filepath=f"name_{field:.0f}Oe.png", sf=inch_per_px, dpi=dpi)
