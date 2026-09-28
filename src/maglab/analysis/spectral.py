@@ -13,6 +13,7 @@ Conventions
 import numpy as np
 import pandas as pd
 import scipy.fft as fft
+from scipy.signal import find_peaks
 
 T_AXIS = 0
 XY_AXES = (2, 3)
@@ -28,7 +29,8 @@ def _other_axes(ndim: int, axis: int | list[int]) -> tuple[int, ...]:
 
 def _expand(mask: np.ndarray, ndim: int, axes: tuple[int, ...]) -> np.ndarray:
     """Reshape mask so its dims sit on `axes` of an ndim-array (size 1 elsewhere)"""
-    shape = [mask.shape[i] if i in axes else 1 for i in range(ndim)]
+    print(mask.shape, ndim, axes)
+    shape = [mask.shape[axes.index(i)] if i in axes else 1 for i in range(ndim)]
     return mask.reshape(shape)
 
 
@@ -102,3 +104,12 @@ def table_ringdown(mag: np.ndarray | pd.Series, time: np.ndarray | pd.Series) ->
     spec = time_to_freq(time)
     freqs = frequencies(len(time), np.diff(time).mean())
     return pd.DataFrame({"frequency": freqs, "power": spec})
+
+
+# --- peaks -------------------------------------------------------------------
+
+
+def detect_modes(arr: np.ndarray, min_prom_db=10):
+    db = 20 * np.log10(arr[1:] / arr.max())
+    peaks, _ = find_peaks(db, prominence=min_prom_db)
+    return peaks + 1

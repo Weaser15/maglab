@@ -3,8 +3,10 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+from ..analysis.spectral import coherent_power, detect_modes, incoherent_power
 from ..loaders.hysteresis import load_hysteresis
 from ..loaders.mumax3 import get_state_idx, load_multiple_ovf_array
+from ..loaders.mx3_ringdown import load_frequencies, load_spec_array
 from ..viz.state import plot_lightness, plot_streamlines, to_image
 
 
@@ -39,4 +41,45 @@ def plot_hysteresis(
         if streamlines:
             plot_streamlines(state, ax=ax, d_sep=10, arrows=True)
         to_image(ax, filepath=savedir / f"{name}_{field:.0f}Oe.png", sf=inch_per_px, dpi=dpi)
+        plt.close()
+
+
+def plot_excitation(
+    dirpath: Path | str,
+    savedir: Path | str,
+    name: str = "ringdown",
+    coherent: bool = False,
+    direction: tuple[float, float, float] = (0, 0, 1),
+    min_prom_db: int = 4,
+    inch_per_px: float = 1e-3,
+    dpi: int = 200,
+):
+    dirpath = Path(dirpath)
+    savedir = Path(savedir)
+
+    arr = load_spec_array(dirpath, direction=direction)
+    psd = coherent_power(arr) if coherent else incoherent_power(arr)
+    freqs = load_frequencies(dirpath / "table.txt")
+
+    fig, ax = plt.subplots()
+    ax.plot(freqs / 1e9, psd)
+    ax.set_xlabel("Frequency (GHz)")
+    ax.set_ylabel("Power")
+
+    idx = detect_modes(psd, min_prom_db)
+    ax.scatter(freqs[idx] / 1e9, psd[idx], color="k")
+    fig.savefig(savedir / f"{name}.png", dpi=dpi)
+
+    for i in idx:
+        f = freqs[i]
+        state = arr[i, ...].mean(axis=0)
+        state *= np.exp(-1j * np.angle(state.flat[np.argmax(np.abs(state))]))
+        v = np.abs(state.real).max()
+        state[state == 0.0] = np.nan
+
+        fig, ax = plt.subplots()
+        ax.imshow(state.real, cmap="RdBu_r", vmin=-v, vmax=v)
+        ax.set_xlim(*ax.get_xlim())
+        ax.set_ylim(*ax.get_ylim())
+        to_image(ax, filepath=savedir / f"{name} {f:.2f}GHz.png", sf=inch_per_px, dpi=dpi)
         plt.close()
