@@ -9,6 +9,7 @@ def compute_dot_vectors(
     names: list[str],
     direction: str | tuple[float, float, float] | np.ndarray,
     comps: tuple[str, ...] = ("x", "y", "z"),
+    positive: bool = False,
 ) -> list[np.ndarray]:
 
     # Get normalised direction
@@ -16,6 +17,7 @@ def compute_dot_vectors(
         mask = df.columns.str.contains("|".join(direction + c for c in comps))
         direction = df.loc[0, mask].to_numpy()  # type:ignore
     norm_direction = np.array(direction) / np.linalg.norm(direction)
+    norm_direction *= 1 if positive else -1
     dotted: list[np.ndarray] = []
     for name in names:
         # Find all columns that contain name + comp

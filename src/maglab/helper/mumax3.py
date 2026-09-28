@@ -22,7 +22,7 @@ def plot_hysteresis(
     savedir.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots()
-    df = load_hysteresis(dirpath / "table.txt")
+    df = load_hysteresis(dirpath / "table.txt", repeat=False)
     ax.plot(df["field"] * 1e4, df["mag"])
     ax.set_xlim(-1000, 1000)
     ax.set_ylim(-1, 1)
