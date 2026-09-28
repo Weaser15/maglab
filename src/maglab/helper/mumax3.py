@@ -14,6 +14,7 @@ def plot_hysteresis(
     name: str = "hyst",
     inch_per_px: float = 1e-3,
     dpi: int = 200,
+    streamlines: bool = False,
 ):
 
     dirpath = Path(dirpath)
@@ -35,5 +36,7 @@ def plot_hysteresis(
     for field, state in zip(fields, arr):
         state = state[0, ...]
         ax = plot_lightness(state)
-        plot_streamlines(state, ax=ax, d_sep=10, arrows=True)
+        if streamlines:
+            plot_streamlines(state, ax=ax, d_sep=10, arrows=True)
         to_image(ax, filepath=savedir / f"{name}_{field:.0f}Oe.png", sf=inch_per_px, dpi=dpi)
+        plt.close()
