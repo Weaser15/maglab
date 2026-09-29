@@ -24,15 +24,8 @@ def plot_hysteresis(
     savedir = Path(savedir)
     savedir.mkdir(parents=True, exist_ok=True)
 
-    fig, ax = plt.subplots()
     df = load_hysteresis(dirpath / "table.txt", repeat=False)
     df.to_csv(savedir / f"{name}.csv")
-    ax.plot(df["field"] * 1e4, df["mag"])
-    ax.set_xlim(-1000, 1000)
-    ax.set_ylim(-1, 1)
-    ax.set_xlabel("Field (Oe)")
-    ax.set_ylabel(r"$M/M_\text{S}$")
-    fig.savefig(savedir / f"{name}.png", dpi=dpi)
 
     state_idx = get_state_idx(dirpath / "table.txt")
     fields = df.loc[np.where(state_idx)[0], "field"] * 1e4
@@ -44,6 +37,14 @@ def plot_hysteresis(
             plot_streamlines(state, ax=ax, d_sep=10, arrows=True)
         to_image(ax, filepath=savedir / f"{name}_{field:.0f}Oe.png", sf=inch_per_px, dpi=dpi)
         plt.close()
+
+    fig, ax = plt.subplots()
+    ax.plot(df["field"] * 1e4, df["mag"])
+    ax.set_xlim(-1000, 1000)
+    ax.set_ylim(-1, 1)
+    ax.set_xlabel("Field (Oe)")
+    ax.set_ylabel(r"$M/M_\text{S}$")
+    fig.savefig(savedir / f"{name}.png", dpi=dpi)
 
 
 def plot_excitation(
@@ -63,16 +64,7 @@ def plot_excitation(
     arr = load_spec_array(dirpath, direction=direction)
     psd = coherent_power(arr) if coherent else incoherent_power(arr)
     freqs = load_frequencies(dirpath / "table.txt")
-    df = pd.DataFrame({"frequency": freqs, "power": psd})
-    df.to_csv(savedir / f"{name}.csv")
-    fig, ax = plt.subplots()
-    ax.plot(freqs / 1e9, psd)
-    ax.set_xlabel("Frequency (GHz)")
-    ax.set_ylabel("Power")
-
     idx = detect_modes(psd, min_prom_db)
-    ax.scatter(freqs[idx] / 1e9, psd[idx], color="k")
-    fig.savefig(savedir / f"{name}.png", dpi=dpi)
 
     for i in idx:
         f = freqs[i]
@@ -87,3 +79,13 @@ def plot_excitation(
         ax.set_ylim(*ax.get_ylim())
         to_image(ax, filepath=savedir / f"{name} {f:.2f}GHz.png", sf=inch_per_px, dpi=dpi)
         plt.close()
+
+    df = pd.DataFrame({"frequency": freqs, "power": psd})
+    df.to_csv(savedir / f"{name}.csv")
+    fig, ax = plt.subplots()
+    ax.plot(freqs / 1e9, psd)
+    ax.set_xlabel("Frequency (GHz)")
+    ax.set_ylabel("Power")
+
+    ax.scatter(freqs[idx] / 1e9, psd[idx], color="k")
+    fig.savefig(savedir / f"{name}.png", dpi=dpi)
