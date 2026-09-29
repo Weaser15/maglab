@@ -2,6 +2,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 from ..analysis.spectral import coherent_power, detect_modes, incoherent_power
 from ..loaders.hysteresis import load_hysteresis
@@ -25,6 +26,7 @@ def plot_hysteresis(
 
     fig, ax = plt.subplots()
     df = load_hysteresis(dirpath / "table.txt", repeat=False)
+    df.to_csv(savedir / f"{name}.csv")
     ax.plot(df["field"] * 1e4, df["mag"])
     ax.set_xlim(-1000, 1000)
     ax.set_ylim(-1, 1)
@@ -56,11 +58,13 @@ def plot_excitation(
 ):
     dirpath = Path(dirpath)
     savedir = Path(savedir)
+    savedir.mkdir(parents=True, exist_ok=True)
 
     arr = load_spec_array(dirpath, direction=direction)
     psd = coherent_power(arr) if coherent else incoherent_power(arr)
     freqs = load_frequencies(dirpath / "table.txt")
-
+    df = pd.DataFrame({"frequency": freqs, "power": psd})
+    df.to_csv(savedir / f"{name}.csv")
     fig, ax = plt.subplots()
     ax.plot(freqs / 1e9, psd)
     ax.set_xlabel("Frequency (GHz)")
