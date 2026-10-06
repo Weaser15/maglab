@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from ..analysis.spectral import coherent_power, detect_modes, incoherent_power
+from ..analysis.spectral import coherent_power, detect_modes, filter_k, incoherent_power
 from ..loaders.hysteresis import load_hysteresis
 from ..loaders.mumax3 import get_state_idx, load_multiple_ovf_array
 from ..loaders.mx3_ringdown import load_frequencies, load_spec_array
@@ -51,6 +51,8 @@ def plot_excitation(
     dirpath: Path | str,
     savedir: Path | str,
     name: str = "ringdown",
+    masks: tuple = (None,),
+    k_filter: np.ndarray | None = None,
     coherent: bool = False,
     direction: tuple[float, float, float] = (0, 0, 1),
     min_prom_db: int = 4,
@@ -58,34 +60,51 @@ def plot_excitation(
     dpi: int = 200,
 ):
     dirpath = Path(dirpath)
+
+    # Remove the 6-digit number and the beginning index (so glob works later)
+    # This should find the different layers
+    comps = list({f.stem[1:-6] for f in dirpath.glob("*.ovf")})
+    comps.sort()
+
+    # Create the save directory
     savedir = Path(savedir)
     savedir.mkdir(parents=True, exist_ok=True)
 
-    arr = load_spec_array(dirpath, direction=direction)
-    psd = coherent_power(arr) if coherent else incoherent_power(arr)
-    freqs = load_frequencies(dirpath / "table.txt")
-    idx = detect_modes(psd, min_prom_db)
+    dfs = []
+    for j, mask in enumerate(masks):
+        for i, comp in enumerate(comps):
+            arr = load_spec_array(dirpath, direction=direction, comp=comp)
 
-    for i in idx:
-        f = freqs[i]
-        state = arr[i, ...].mean(axis=0)
-        state *= np.exp(-1j * np.angle(state.flat[np.argmax(np.abs(state))]))
-        v = np.abs(state.real).max()
-        state[state == 0.0] = np.nan
+            # Compute the spectrum and find peaks
+            psd = coherent_power(arr) if coherent else incoherent_power(arr)
+            freqs = load_frequencies(dirpath / "table.txt")
+            idxs = detect_modes(psd, min_prom_db)
 
-        fig, ax = plt.subplots()
-        ax.imshow(state.real, cmap="RdBu_r", vmin=-v, vmax=v)
-        ax.set_xlim(*ax.get_xlim())
-        ax.set_ylim(*ax.get_ylim())
-        to_image(ax, filepath=savedir / f"{name} {f:.2f}GHz.png", sf=inch_per_px, dpi=dpi)
-        plt.close()
+            # Filter when transforming into reciprocal space (Useful for BLS and micro-BLS)
+            if k_filter is not None:
+                arr = filter_k(arr, mask=mask)
 
-    df = pd.DataFrame({"frequency": freqs, "power": psd})
-    df.to_csv(savedir / f"{name}.csv")
-    fig, ax = plt.subplots()
-    ax.plot(freqs / 1e9, psd)
-    ax.set_xlabel("Frequency (GHz)")
-    ax.set_ylabel("Power")
+            # Plot each peak mode
+            for idx in idxs:
+                f = freqs[idx]
+                state = arr[idx, ...].mean(axis=0)
+                state *= np.exp(-1j * np.angle(state.flat[np.argmax(np.abs(state))]))
+                v = np.abs(state.real).max()
+                state[state == 0.0] = np.nan
 
-    ax.scatter(freqs[idx] / 1e9, psd[idx], color="k")
-    fig.savefig(savedir / f"{name}.png", dpi=dpi)
+                fig, ax = plt.subplots()
+                ax.imshow(state.real, cmap="RdBu_r", vmin=-v, vmax=v)
+                ax.set_xlim(*ax.get_xlim())
+                ax.set_ylim(*ax.get_ylim())
+                to_image(ax, filepath=savedir / f"{name} {f:.2f}GHz.png", sf=inch_per_px, dpi=dpi)
+                plt.close()
+            dfs.append(pd.DataFrame({"frequency": freqs, "power": psd, "layer": i, "mask": j}))
+            fig, ax = plt.subplots()
+            ax.plot(freqs / 1e9, psd)
+            ax.set_xlabel("Frequency (GHz)")
+            ax.set_ylabel("Power")
+
+            ax.scatter(freqs[idxs] / 1e9, psd[idxs], color="k")
+            fig.savefig(savedir / f"{name}_layer{i}_mask{j}.png", dpi=dpi)
+
+    pd.concat(dfs, ignore_index=True).to_csv(savedir / f"{name}.csv")
