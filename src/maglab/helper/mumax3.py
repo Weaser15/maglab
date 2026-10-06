@@ -85,7 +85,7 @@ def plot_excitation(
                 arr = load_spec_array(dirpath, direction=direction, comp=comp, mask=mask)
 
             psd = coherent_power(arr) if coherent else incoherent_power(arr)
-            freqs = load_frequencies(dirpath / "table.txt")
+            freqs = np.round(load_frequencies(dirpath / "table.txt") / 1e9, 5)
             idxs = detect_modes(psd, min_prom_db)
 
             # Plot each peak mode
@@ -100,15 +100,20 @@ def plot_excitation(
                 ax.imshow(state.real, cmap="RdBu_r", vmin=-v, vmax=v)
                 ax.set_xlim(*ax.get_xlim())
                 ax.set_ylim(*ax.get_ylim())
-                to_image(ax, filepath=savedir / f"{name} {f:.2f}GHz.png", sf=inch_per_px, dpi=dpi)
+                to_image(
+                    ax,
+                    filepath=savedir / f"{name}_layer{i}_mask{j}_{f:.2f}GHz.png",
+                    sf=inch_per_px,
+                    dpi=dpi,
+                )
                 plt.close()
             dfs.append(pd.DataFrame({"frequency": freqs, "power": psd, "layer": i, "mask": j}))
             fig, ax = plt.subplots()
-            ax.plot(freqs / 1e9, psd)
+            ax.plot(freqs, psd)
             ax.set_xlabel("Frequency (GHz)")
             ax.set_ylabel("Power")
 
-            ax.scatter(freqs[idxs] / 1e9, psd[idxs], color="k")
+            ax.scatter(freqs[idxs], psd[idxs], color="k")
             fig.savefig(savedir / f"{name}_layer{i}_mask{j}.png", dpi=dpi)
 
     pd.concat(dfs, ignore_index=True).to_csv(savedir / f"{name}.csv")
