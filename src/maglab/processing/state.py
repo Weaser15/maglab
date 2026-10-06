@@ -37,8 +37,11 @@ def boundary_slice_mask(shape: np.ndarray | tuple[int, ...], slices: list[slice]
 def get_mask_shape(shape: np.ndarray | tuple[int, ...], mask: Any):
     shape = shape.shape if isinstance(shape, np.ndarray) else shape
     mask_shape = []
+    # If slice, will only operate on the first dimension
     if isinstance(mask, slice):
         return (len(np.empty(shape[0])[mask]), *shape[1:])
+    # Otherwise must be an iterable with either slices or lists / numpy arrays.
+    # This will iterate to the smaller of the two axes.
     for size, masked_row in zip(shape, mask):
         if isinstance(masked_row, np.ndarray | list):
             mask_shape.append(len(masked_row))
@@ -46,5 +49,6 @@ def get_mask_shape(shape: np.ndarray | tuple[int, ...], mask: Any):
             mask_shape.append(len(np.empty(size)[masked_row]))
         else:
             raise NotImplementedError(f"Currently type {type(masked_row)} is not supported!")
-    mask_shape.extend(shape[len(mask) - len(shape) :])
+    if len(mask) < len(shape):
+        mask_shape.extend(shape[len(mask) - len(shape) :])
     return tuple(mask_shape)
