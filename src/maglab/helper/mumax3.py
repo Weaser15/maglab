@@ -71,18 +71,22 @@ def plot_excitation(
     savedir.mkdir(parents=True, exist_ok=True)
 
     dfs = []
-    for j, mask in enumerate(masks):
-        for i, comp in enumerate(comps):
-            arr = load_spec_array(dirpath, direction=direction, comp=comp)
-
+    for i, comp in enumerate(comps):
+        for j, mask in enumerate(masks):
             # Compute the spectrum and find peaks
+
+            # If you want to filter in k-space, you first want to apply the filter then the mask.
+            # Otherwise, it is faster and requires less memory to apply the mask during loading.
+            if k_filter is not None:
+                arr = load_spec_array(dirpath, direction=direction, comp=comp)
+                arr = filter_k(arr, mask=k_filter)
+                arr = arr[mask]
+            else:
+                arr = load_spec_array(dirpath, direction=direction, comp=comp, mask=mask)
+
             psd = coherent_power(arr) if coherent else incoherent_power(arr)
             freqs = load_frequencies(dirpath / "table.txt")
             idxs = detect_modes(psd, min_prom_db)
-
-            # Filter when transforming into reciprocal space (Useful for BLS and micro-BLS)
-            if k_filter is not None:
-                arr = filter_k(arr, mask=mask)
 
             # Plot each peak mode
             for idx in idxs:
