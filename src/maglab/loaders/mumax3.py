@@ -29,6 +29,7 @@ def load_ovf_array(
     mask: Any = slice(None),
 ):
     # Load array and apply mask, then z slice
+    mask = mask if isinstance(mask, slice) else mask[1:]
     arr = mumax3.read_ovf_array(filepath)[mask][zslice, ...]
     # Can only apply direction if array vector is size 3, not 1.
     if (direction is not None) and (arr.shape[-1] > 1):
