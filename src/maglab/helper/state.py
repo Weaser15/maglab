@@ -134,8 +134,11 @@ def scalar_state(
 
     carr = arr.copy()
     if kind.lower() in ("real", "imag", "phase"):
+        abs_carr = np.abs(carr)
+        max_carr = np.nanmax(abs_carr)
+        clim = (-max_carr, max_carr) if clim is None else clim
         if phase_offset is None:
-            phase_offset = float(np.angle(carr.flat[np.argmax(np.abs(carr))]))
+            phase_offset = float(np.angle(carr.flat[np.argmax(abs_carr)]))
         assert isinstance(phase_offset, float)
         phase_mult: float = np.exp(-1j * phase_offset)
     # Convert array from data to colour

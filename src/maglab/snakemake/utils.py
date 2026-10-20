@@ -1,4 +1,3 @@
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +9,11 @@ from ..processing.state import apply_bool_mask, boundary_slice_mask
 
 
 def auto_bool_masks(arr: np.ndarray, has_pbc: bool = True) -> list[np.ndarray]:
+
+    if (ndims := len(arr.shape)) > 3:
+        raise ValueError(f"`arr` must havve at most 3 dimensions! Has {ndims}")
+
+    arr = np.sum(np.square(arr), axis=-1).astype(bool) if ndims == 3 else arr.astype(bool)
 
     labels, n = ndimage.label(arr)
 
@@ -85,15 +89,13 @@ def generate_masks_from_roi(
 
 def apply_mask(
     arr,
-    mask: Callable | np.ndarray | slice | tuple,
+    mask: np.ndarray | slice | tuple,
     crop_first: bool = False,
     has_pbc: bool = True,
 ):
 
-    if isinstance(mask, Callable):
-        if crop_first:
-            print("Cannot crop first dimension of mask as it is a function!")
-        return mask(arr)
+    if mask is None:
+        return arr
     if isinstance(mask, slice):
         # Slice can only be 1D, so if first dim cropped, it doesn't apply.
         return arr if crop_first else arr[mask]
@@ -113,7 +115,7 @@ def apply_mask(
 
 def get_mask_applied_shape(
     shape,
-    mask: Callable | np.ndarray | slice | tuple,
+    mask: np.ndarray | slice | tuple,
     crop_first: bool = False,
     has_pbc: bool = True,
 ):

@@ -225,3 +225,7 @@ __marimo__/
 
 # Images
 *.png
+*.gif
+
+# Saved values
+*.csv

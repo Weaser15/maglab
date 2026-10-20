@@ -58,14 +58,18 @@ def get_mask_shape(shape: np.ndarray | tuple[int, ...], mask: Any):
 
 def apply_bool_mask(arr: np.ndarray, bool_mask: np.ndarray, has_pbc: bool = True):
     # Only works for 2D arr and bool_mask! Make sure bool mask is the same shape as arr
-    if arr.shape != bool_mask.shape:
-        raise ValueError("`arr` and `bool_mask` must have the same shape!")
+
+    if (arr_ndims := len(arr.shape)) > 3:
+        raise ValueError(f"`arr` must have at most 3 dimensions! Has {arr_ndims}.")
+
+    if arr.shape[:2] != bool_mask.shape[:2]:
+        raise ValueError("`arr` and `bool_mask` must have the same shape for first 2 dimensions!")
 
     # Find objects does not work on boolean arrays. Need to convert to integer.
     # Y axis is axis=0 and X axis is axis=1
     arr = arr.copy()
     arr[~bool_mask] = 0.0  # Set everywhere mask isn't True to 0
-    ny, nx = bool_mask.shape
+    ny, nx, *_ = bool_mask.shape
     bbox: tuple[slice, slice] = ndimage.find_objects(bool_mask.astype(np.int8))[0]  # type:ignore
 
     spans_x = bbox[1].start == 0 and bbox[1].stop == nx
