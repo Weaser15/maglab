@@ -15,12 +15,12 @@ from ..analysis.spectral import (
     time_to_freq,
 )
 from ..formats.mumax3 import read_table
-from ..helper.state import plot_single_state
 from ..loaders.hysteresis import load_hysteresis
 from ..loaders.mumax3 import get_indexes_by_param, get_state_idx, load_multiple_ovf_array
 from ..loaders.mx3_ringdown import load_frequencies, load_spec_array
-from ..snakemake.utils import apply_mask
+from ..processing.state import apply_mask
 from ..viz.state import plot_lightness, plot_streamlines, to_image
+from .state import plot_single_state
 
 # def plot_hysteresis(
 #     dirpath: Path | str,
@@ -62,7 +62,7 @@ def plot_excitation(
     dirpath: Path | str,
     savedir: Path | str,
     name: str = "ringdown",
-    masks: tuple = (None,),
+    masks: tuple | dict = (None,),
     kind: Literal["real", "imag", "power", "log_power", "magnitude", "log_magnitude"] = "real",
     k_filter: np.ndarray | None = None,
     coherent: bool = False,
@@ -89,7 +89,14 @@ def plot_excitation(
             full_arr = load_multiple_ovf_array(dirpath, direction=direction, comp=comp)
             avg_axes = tuple(np.arange(len(full_arr.shape))[1:])
         for j, mask in enumerate(masks):
-            base_name = f"{name}_layer{i}_mask{j}"
+            if isinstance(masks, dict):
+                # mask is the key when it's a dict, not the value (which would be the mask).
+                maskname = mask
+                mask = masks[mask]
+            else:
+                maskname = f"mask{j}"
+
+            base_name = f"{name}_layer{i}_{maskname}"
             # Load the magnetisation from the OVF files. Then plot the time series of magnetisation.
             # Afterwards convert time-to frequency. Complicated when applying k-filters.
             fig, ax = plt.subplots()
@@ -97,8 +104,8 @@ def plot_excitation(
             ax.set_ylabel("Magnetization (norm.)")
             time_series_name = f"{base_name}_timeseries.png"
             if k_filter is not None:
-                ax.plot(time, np.mean(apply_mask(full_arr, mask), axis=avg_axes))
-                arr = apply_mask(filter_k(time_to_freq(full_arr), k_filter), mask, crop_first=True)
+                ax.plot(time, np.mean(apply_mask(full_arr, mask), axis=avg_axes))  # pyright: ignore[reportPossiblyUnboundVariable]
+                arr = apply_mask(filter_k(time_to_freq(full_arr), k_filter), mask, crop_first=True)  # pyright: ignore[reportPossiblyUnboundVariable]
             else:
                 arr = load_multiple_ovf_array(dirpath, direction=direction, comp=comp, mask=mask)
                 avg_axes = tuple(np.arange(len(arr.shape))[1:])
@@ -111,14 +118,16 @@ def plot_excitation(
             power = coherent_power(arr) if coherent else incoherent_power(arr)
             idxs, _ = find_peaks(power, height=min_height * np.max(power))
 
-            dfs.append(pd.DataFrame({"frequency": freqs, "power": power, "layer": i, "mask": j}))
+            dfs.append(
+                pd.DataFrame({"frequency": freqs, "power": power, "layer": i, "mask": maskname})
+            )
 
             fig, ax = plt.subplots()
             ax.plot(freqs, power)
             ax.set_xlabel("Frequency (GHz)")
             ax.set_ylabel("Power")
             ax.scatter(freqs[idxs], power[idxs], color="k")
-            fig.savefig(savedir / f"{name}_layer{i}_mask{j}.png")
+            fig.savefig(savedir / f"{name}_layer{i}_{maskname}.png")
             plt.close(fig)
 
             # Plot each peak mode

@@ -56,26 +56,31 @@ def get_mask_shape(shape: np.ndarray | tuple[int, ...], mask: Any):
     return tuple(mask_shape)
 
 
-def apply_bool_mask(arr: np.ndarray, bool_mask: np.ndarray, has_pbc: bool = True):
+def apply_bool_mask(
+    arr: np.ndarray, bool_mask: np.ndarray, has_pbc: bool = True, notheraxes: int = 0
+):
     # Only works for 2D arr and bool_mask! Make sure bool mask is the same shape as arr
-
-    if (arr_ndims := len(arr.shape)) > 3:
+    if (arr_ndims := len(arr.shape)) > 3 + notheraxes:
         raise ValueError(f"`arr` must have at most 3 dimensions! Has {arr_ndims}.")
 
-    if arr.shape[:2] != bool_mask.shape[:2]:
+    if arr.shape[notheraxes : notheraxes + 2] != bool_mask.shape[:2]:
         raise ValueError("`arr` and `bool_mask` must have the same shape for first 2 dimensions!")
 
+    if np.all(bool_mask):
+        return arr
+
+    otheraxes = tuple(slice(None) for _ in range(notheraxes))
     # Find objects does not work on boolean arrays. Need to convert to integer.
     # Y axis is axis=0 and X axis is axis=1
     arr = arr.copy()
-    arr[~bool_mask] = 0.0  # Set everywhere mask isn't True to 0
+    arr[*otheraxes, ~bool_mask] = 0.0  # Set everywhere mask isn't True to 0
     ny, nx, *_ = bool_mask.shape
     bbox: tuple[slice, slice] = ndimage.find_objects(bool_mask.astype(np.int8))[0]  # type:ignore
 
     spans_x = bbox[1].start == 0 and bbox[1].stop == nx
     spans_y = bbox[0].start == 0 and bbox[0].stop == ny
     if not (spans_x or spans_y) or not has_pbc:
-        return arr[bbox].copy()
+        return arr[*otheraxes, *bbox].copy()
 
     if spans_x:
         # Check if there is a gap.
@@ -97,4 +102,43 @@ def apply_bool_mask(arr: np.ndarray, bool_mask: np.ndarray, has_pbc: bool = True
     else:
         indices_y = bbox[0]
 
-    return arr[indices_y, indices_x].copy()
+    return arr[*otheraxes, indices_y, indices_x].copy()
+
+
+def apply_mask(
+    arr,
+    mask: np.ndarray | slice | tuple,
+    crop_first: bool = False,
+    has_pbc: bool = True,
+):
+    ndims = len(arr.shape)
+    arr = arr.copy()
+    if mask is None:
+        return arr
+    if isinstance(mask, slice):
+        # Slice can only be 1D, so if first dim cropped, it doesn't apply.
+        return arr if crop_first else arr[mask]
+    if isinstance(mask, tuple):
+        # If crop_first = True -> starts from after first, else from beginning
+        return arr[mask[crop_first:]]
+    if isinstance(mask, np.ndarray):
+        # First case - boolean mask (when dtype == bool):
+        if mask.dtype == bool:
+            if crop_first and mask.shape[0] != 1:
+                print("Warning: First dimension has shape when cropping bool mask!")
+            notheraxes = max(0, ndims - 3)
+            return apply_bool_mask(
+                arr, mask[0, ...] if crop_first else mask, has_pbc=has_pbc, notheraxes=notheraxes
+            )
+        else:
+            raise NotImplementedError
+    raise NotImplementedError
+
+
+def get_mask_applied_shape(
+    shape,
+    mask: np.ndarray | slice | tuple,
+    crop_first: bool = False,
+    has_pbc: bool = True,
+):
+    return apply_mask(np.empty(shape, dtype=bool), mask, crop_first, has_pbc).shape

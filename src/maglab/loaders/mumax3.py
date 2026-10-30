@@ -7,7 +7,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from ..formats import mumax3
-from ..processing.state import get_mask_shape
+from ..processing.state import apply_mask, get_mask_applied_shape
 from .utils import compute_dot_vectors
 
 
@@ -29,8 +29,8 @@ def load_ovf_array(
     mask: Any = slice(None),
 ):
     # Load array and apply mask, then z slice
-    mask = mask if isinstance(mask, slice) else mask[1:]
-    arr = mumax3.read_ovf_array(filepath)[mask][zslice, ...]
+    # mask = mask if isinstance(mask, slice) else mask[1:]
+    arr = apply_mask(mumax3.read_ovf_array(filepath), mask)[zslice, ...]
     # Can only apply direction if array vector is size 3, not 1.
     if (direction is not None) and (arr.shape[-1] > 1):
         # Normalise direction and if direction is along a single component select just that.
@@ -65,13 +65,20 @@ def load_multiple_ovf_array(
     # If direction is defined, last axis collapes to 1
     valuedim = 1 if direction is not None else valuedim
     # If a mask is defined, apply the shape to the array.
-    shape = get_mask_shape((len(files), nz, ny, nx, valuedim), mask)
+    # shape = get_mask_shape((len(files), nz, ny, nx, valuedim), mask)
+    shape = get_mask_applied_shape((len(files), nz, ny, nx, valuedim), mask)
     arr = np.empty(shape, dtype=np.float32)
+
+    single_mask = mask
+    if isinstance(mask, np.ndarray):
+        single_mask = mask[0, ...] if len(mask.shape) == 5 else mask
+    elif isinstance(mask, tuple):
+        single_mask = mask[1:]
 
     # Parallelise the loading process by splitting into multiple workers
     def _load(args):
         i, file = args
-        arr[i] = load_ovf_array(file, direction=direction, zslice=zslice, mask=mask)
+        arr[i] = load_ovf_array(file, direction=direction, zslice=zslice, mask=single_mask)
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(_load, (i, f)): i for i, f in enumerate(files)}

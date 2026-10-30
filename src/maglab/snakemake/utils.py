@@ -6,7 +6,7 @@ from PIL import Image
 from scipy import ndimage
 
 from ..loaders.mumax3 import load_ovf_array
-from ..processing.state import apply_bool_mask, boundary_slice_mask
+from ..processing.state import boundary_slice_mask
 
 
 def auto_bool_masks(arr: np.ndarray, has_pbc: bool = True) -> list[np.ndarray]:
@@ -14,9 +14,7 @@ def auto_bool_masks(arr: np.ndarray, has_pbc: bool = True) -> list[np.ndarray]:
     if (ndims := len(arr.shape)) > 3:
         raise ValueError(f"`arr` must havve at most 3 dimensions! Has {ndims}")
 
-    arr = (
-        np.sum(np.square(arr), axis=-1).astype(bool) if ndims == 3 else arr.astype(bool)
-    )
+    arr = np.sum(np.square(arr), axis=-1).astype(bool) if ndims == 3 else arr.astype(bool)
 
     labels, n = ndimage.label(arr)
 
@@ -75,9 +73,7 @@ def generate_masks_from_rois(
         if roi is None:
             mask_dict[name] = slice(None)
         if not isinstance(roi, dict):
-            raise NotImplementedError(
-                f"RoI {name} should be dict, but is type {type(roi)}!"
-            )
+            raise NotImplementedError(f"RoI {name} should be dict, but is type {type(roi)}!")
         match roi["type"].lower():
             case "slice":
                 y = slice(roi["ymin"], roi["ymax"])
@@ -102,43 +98,6 @@ def generate_masks_from_rois(
                     "Currently only types ('slice', 'auto', 'shape' and 'full') are supported"
                 )
     return mask_dict
-
-
-def apply_mask(
-    arr,
-    mask: np.ndarray | slice | tuple,
-    crop_first: bool = False,
-    has_pbc: bool = True,
-):
-
-    if mask is None:
-        return arr
-    if isinstance(mask, slice):
-        # Slice can only be 1D, so if first dim cropped, it doesn't apply.
-        return arr if crop_first else arr[mask]
-    if isinstance(mask, tuple):
-        # If crop_first = True -> starts from after first, else from beginning
-        return arr[mask[crop_first:]]
-    if isinstance(mask, np.ndarray):
-        # First case - boolean mask (when dtype == bool):
-        if mask.dtype == bool:
-            if crop_first and mask.shape[0] != 1:
-                print("Warning: First dimension has shape when cropping bool mask!")
-            return apply_bool_mask(
-                arr, mask[0, ...] if crop_first else mask, has_pbc=has_pbc
-            )
-        else:
-            raise NotImplementedError
-    raise NotImplementedError
-
-
-def get_mask_applied_shape(
-    shape,
-    mask: np.ndarray | slice | tuple,
-    crop_first: bool = False,
-    has_pbc: bool = True,
-):
-    return apply_mask(np.empty(shape, dtype=bool), mask, crop_first, has_pbc).shape
 
 
 def convert_to_bool_mask(
