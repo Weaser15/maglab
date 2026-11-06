@@ -9,7 +9,6 @@ from scipy.signal import find_peaks
 
 from ..analysis.spectral import (
     coherent_power,
-    detect_modes,
     filter_k,
     incoherent_power,
     time_to_freq,
@@ -19,43 +18,77 @@ from ..loaders.hysteresis import load_hysteresis
 from ..loaders.mumax3 import get_indexes_by_param, get_state_idx, load_multiple_ovf_array
 from ..loaders.mx3_ringdown import load_frequencies, load_spec_array
 from ..processing.state import apply_mask
-from ..viz.state import plot_lightness, plot_streamlines, to_image
 from .state import plot_single_state
 
-# def plot_hysteresis(
-#     dirpath: Path | str,
-#     savedir: Path | str,
-#     name: str = "hyst",
-#     inch_per_px: float = 1e-3,
-#     dpi: int = 200,
-#     streamlines: bool = False,
-# ):
 
-#     dirpath = Path(dirpath)
-#     savedir = Path(savedir)
-#     savedir.mkdir(parents=True, exist_ok=True)
+def plot_hysteresis(
+    dirpath: Path | str,
+    savedir: Path | str,
+    name: str = "hyst",
+    masks: tuple | dict = (None,),
+    cell_size_in: float = 0.01,
+    px_per_cell: int = 4,
+    arrow_params: bool | dict = False,
+    streamline_params: bool | dict = False,
+):
 
-#     df = load_hysteresis(dirpath / "table.txt", repeat=False)
-#     df.to_csv(savedir / f"{name}.csv")
+    dirpath = Path(dirpath)
+    savedir = Path(savedir)
+    savedir.mkdir(parents=True, exist_ok=True)
 
-#     state_idx = get_state_idx(dirpath / "table.txt")
-#     fields = df.loc[np.where(state_idx)[0], "field"] * 1e4
-#     arr = load_multiple_ovf_array(dirpath, zslice=0)
-#     for field, state in zip(fields, arr):
-#         state = state[0, ...]
-#         ax = plot_lightness(state)
-#         if streamlines:
-#             plot_streamlines(state, ax=ax, d_sep=10, arrows=True)
-#         to_image(ax, filepath=savedir / f"{name}_{field:.0f}Oe.png", sf=inch_per_px, dpi=dpi)
-#         plt.close()
+    tablepath = dirpath / "table.txt"
+    hyst_df = load_hysteresis(tablepath, repeat=False)
+    state_idx = np.where(get_state_idx(tablepath))[0]
 
-#     fig, ax = plt.subplots()
-#     ax.plot(df["field"] * 1e4, df["mag"])
-#     ax.set_xlim(-1000, 1000)
-#     ax.set_ylim(-1, 1)
-#     ax.set_xlabel("Field (Oe)")
-#     ax.set_ylabel(r"$M/M_\text{S}$")
-#     fig.savefig(savedir / f"{name}.png", dpi=dpi)
+    fields = hyst_df.loc[state_idx, "field"] * 1e4
+    full_arr = load_multiple_ovf_array(dirpath, zslice=0)
+
+    # Get first field where magnetisation state is saved.
+    table = read_table(tablepath)
+    field_vector: np.ndarray = np.asarray(
+        table.loc[state_idx[0], ("B_extx (T)", "B_exty (T)", "B_extz (T)")]
+    )
+    field_vector = field_vector / np.linalg.norm(field_vector)
+
+    dfs = []
+    for j, mask in enumerate(masks):
+        if isinstance(masks, dict):
+            # mask is the key when it's a dict, not the value (which would be the mask).
+            maskname = mask
+            mask = masks[mask]
+        else:
+            maskname = f"mask{j}"
+
+        basename = f"{name}_{maskname}"
+
+        arr = apply_mask(full_arr, mask)
+        mag = -np.mean(np.dot(arr, field_vector), axis=(1, 2, 3))
+
+        fig, ax = plt.subplots()
+        ax.plot(fields, mag)
+        ax.set_xlim(-1000, 1000)
+        ax.set_ylim(-1, 1)
+        ax.set_xlabel("Field (Oe)")
+        ax.set_ylabel(r"$M/M_\text{S}$")
+        fig.savefig(savedir / f"{basename}.png", dpi=200)
+
+        dfs.append(pd.DataFrame({"mask": maskname, "field": fields, "mag": mag}))
+
+        for field, state in zip(fields, arr):
+            state = state[-1, ...]
+            state_save_name = f"{basename}_H{field:.0f}Oe.png"
+            plot_single_state(
+                state,
+                filepath=savedir / state_save_name,
+                kind="lightness",
+                px_per_cell=px_per_cell,
+                cell_size_in=cell_size_in,
+                arrow_params=arrow_params,
+                streamline_params=streamline_params,
+            )
+            plt.close()
+
+    pd.concat(dfs).to_csv(savedir / f"{name}.csv", index=False)
 
 
 def plot_excitation(
@@ -119,7 +152,7 @@ def plot_excitation(
             idxs, _ = find_peaks(power, height=min_height * np.max(power))
 
             dfs.append(
-                pd.DataFrame({"frequency": freqs, "power": power, "layer": i, "mask": maskname})
+                pd.DataFrame({"mask": maskname, "layer": i, "frequency": freqs, "power": power})
             )
 
             fig, ax = plt.subplots()
@@ -145,4 +178,4 @@ def plot_excitation(
                 plt.close()
 
     csv_name = f"{name}.csv"
-    pd.concat(dfs, ignore_index=True).to_csv(savedir / csv_name)
+    pd.concat(dfs, ignore_index=True).to_csv(savedir / csv_name, index=False)

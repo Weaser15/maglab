@@ -37,8 +37,8 @@ def plot_arrows(arr: np.ndarray, ax: Axes, cells_per_arrow: int, **kwargs):
     y = np.linspace(0, arr.shape[0] - 1, narrows[0])
     X, Y = np.meshgrid(x, y)
 
-    u = arrows_arr[..., 1]
-    v = arrows_arr[..., 0]
+    u = arrows_arr[..., 0]
+    v = arrows_arr[..., 1]
     ax.quiver(X, Y, u, v, **kwargs)
 
 

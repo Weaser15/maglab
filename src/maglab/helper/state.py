@@ -84,7 +84,6 @@ def plot_single_state(
     if ndim == 3 and arr.shape[2] > 1:  # type: ignore
         if arrow_params:
             arrow_params = {} if arrow_params is True else arrow_params
-            print(arrow_params)
             plot_arrows(arr, ax=ax, **arrow_params)
         elif streamline_params:
             streamline_params = {} if streamline_params is True else streamline_params
