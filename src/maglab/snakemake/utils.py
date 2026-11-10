@@ -19,7 +19,7 @@ def auto_bool_masks(arr: np.ndarray, has_pbc: bool = True) -> list[np.ndarray]:
     labels, n = ndimage.label(arr)
 
     if not has_pbc:
-        return [labels[labels == i] for i in range(1, n + 1)]
+        return [labels == i for i in range(1, n + 1)]
 
     # ndimage labels regions from [0, 1, ..., n].
     # 0 - only False values. 1 and above - seperate regions of True values
